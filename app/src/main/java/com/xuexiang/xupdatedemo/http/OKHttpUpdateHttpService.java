@@ -16,21 +16,22 @@
 
 package com.xuexiang.xupdatedemo.http;
 
-import android.support.annotation.NonNull;
-
+import androidx.annotation.NonNull;
 
 import com.xuexiang.xupdate.proxy.IUpdateHttpService;
+import com.xuexiang.xutil.net.JsonUtil;
 import com.zhy.http.okhttp.OkHttpUtils;
 import com.zhy.http.okhttp.callback.FileCallBack;
 import com.zhy.http.okhttp.callback.StringCallback;
+import com.zhy.http.okhttp.request.RequestCall;
 
 import java.io.File;
 import java.util.Map;
 import java.util.TreeMap;
 
 import okhttp3.Call;
+import okhttp3.MediaType;
 import okhttp3.Request;
-import okhttp3.Response;
 
 /**
  * 使用okhttp
@@ -40,9 +41,16 @@ import okhttp3.Response;
  */
 public class OKHttpUpdateHttpService implements IUpdateHttpService {
 
-    public OKHttpUpdateHttpService() {
+    private boolean mIsPostJson;
 
+    public OKHttpUpdateHttpService() {
+        this(false);
     }
+
+    public OKHttpUpdateHttpService(boolean isPostJson) {
+        mIsPostJson = isPostJson;
+    }
+
 
     @Override
     public void asyncGet(@NonNull String url, @NonNull Map<String, Object> params, final @NonNull Callback callBack) {
@@ -66,10 +74,20 @@ public class OKHttpUpdateHttpService implements IUpdateHttpService {
     @Override
     public void asyncPost(@NonNull String url, @NonNull Map<String, Object> params, final @NonNull Callback callBack) {
         //这里默认post的是Form格式，使用json格式的请修改 post -> postString
-        OkHttpUtils.post()
-                .url(url)
-                .params(transform(params))
-                .build()
+        RequestCall requestCall;
+        if (mIsPostJson) {
+            requestCall = OkHttpUtils.postString()
+                    .url(url)
+                    .content(JsonUtil.toJson(params))
+                    .mediaType(MediaType.parse("application/json; charset=utf-8"))
+                    .build();
+        } else {
+            requestCall = OkHttpUtils.post()
+                    .url(url)
+                    .params(transform(params))
+                    .build();
+        }
+        requestCall
                 .execute(new StringCallback() {
                     @Override
                     public void onError(Call call, Exception e, int id) {
@@ -87,6 +105,7 @@ public class OKHttpUpdateHttpService implements IUpdateHttpService {
     public void download(@NonNull String url, @NonNull String path, @NonNull String fileName, final @NonNull DownloadCallback callback) {
         OkHttpUtils.get()
                 .url(url)
+                .tag(url)
                 .build()
                 .execute(new FileCallBack(path, fileName) {
                     @Override
@@ -114,7 +133,7 @@ public class OKHttpUpdateHttpService implements IUpdateHttpService {
 
     @Override
     public void cancelDownload(@NonNull String url) {
-
+        OkHttpUtils.getInstance().cancelTag(url);
     }
 
     private Map<String, String> transform(Map<String, Object> params) {

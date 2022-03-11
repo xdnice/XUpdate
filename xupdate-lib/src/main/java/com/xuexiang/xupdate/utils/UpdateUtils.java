@@ -18,7 +18,9 @@ package com.xuexiang.xupdate.utils;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -30,15 +32,17 @@ import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Environment;
-import android.support.annotation.NonNull;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
+import androidx.annotation.NonNull;
+
 import com.xuexiang.xupdate.R;
+import com.xuexiang.xupdate.XUpdate;
 import com.xuexiang.xupdate._XUpdate;
 import com.xuexiang.xupdate.entity.UpdateEntity;
+import com.xuexiang.xupdate.logs.UpdateLog;
 import com.xuexiang.xupdate.proxy.IUpdateProxy;
 
 import java.io.File;
@@ -46,7 +50,6 @@ import java.util.List;
 
 import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_APK_CACHE_DIR_EMPTY;
 import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_IGNORED_VERSION;
-import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_NO_NEW_VERSION;
 import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_PARSE;
 
 /**
@@ -59,6 +62,8 @@ public final class UpdateUtils {
 
     private static final String IGNORE_VERSION = "xupdate_ignore_version";
     private static final String PREFS_FILE = "xupdate_prefs";
+
+    private static final String KEY_XUPDATE = "xupdate";
 
     private UpdateUtils() {
         throw new UnsupportedOperationException("cannot be instantiated");
@@ -86,7 +91,7 @@ public final class UpdateUtils {
                     updateProxy.findNewVersion(updateEntity, updateProxy);
                 }
             } else {
-                _XUpdate.onUpdateError(CHECK_NO_NEW_VERSION);
+                updateProxy.noNewVersion(null);
             }
         } else {
             _XUpdate.onUpdateError(CHECK_PARSE, "json:" + result);
@@ -111,11 +116,10 @@ public final class UpdateUtils {
     /**
      * 检测当前网络是否是wifi
      *
-     * @param context
-     * @return
+     * @return 当前网络是否是wifi
      */
-    public static boolean checkWifi(Context context) {
-        ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+    public static boolean checkWifi() {
+        ConnectivityManager connectivity = (ConnectivityManager) XUpdate.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connectivity == null) {
             return false;
         }
@@ -126,11 +130,10 @@ public final class UpdateUtils {
     /**
      * 检查当前是否有网
      *
-     * @param context
-     * @return
+     * @return 当前是否有网
      */
-    public static boolean checkNetwork(Context context) {
-        ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+    public static boolean checkNetwork() {
+        ConnectivityManager connectivity = (ConnectivityManager) XUpdate.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connectivity == null) {
             return false;
         }
@@ -186,33 +189,8 @@ public final class UpdateUtils {
         return diff;
     }
 
-    /**
-     * 把 JSON 字符串 转换为 单个指定类型的对象
-     *
-     * @param json     包含了单个对象数据的JSON字符串
-     * @param classOfT 指定类型对象的Class
-     * @return 指定类型对象
-     */
-    public static <T> T fromJson(String json, Class<T> classOfT) {
-        try {
-            return new Gson().fromJson(json, classOfT);
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    /**
-     * 把 单个指定类型的对象 转换为 JSON 字符串
-     *
-     * @param src
-     * @return
-     */
-    public static String toJson(Object src) {
-        return new Gson().toJson(src);
-    }
-
     //=============显示====================//
+
     public static int dip2px(int dip, Context context) {
         return (int) (dip * getDensity(context) + 0.5f);
     }
@@ -336,7 +314,7 @@ public final class UpdateUtils {
     public static boolean isApkDownloaded(UpdateEntity updateEntity) {
         File appFile = getApkFileByUpdateEntity(updateEntity);
         return !TextUtils.isEmpty(updateEntity.getMd5())
-                && appFile.exists()
+                && FileUtils.isFileExists(appFile)
                 && _XUpdate.isFileValid(updateEntity.getMd5(), appFile);
     }
 
@@ -362,11 +340,11 @@ public final class UpdateUtils {
     @NonNull
     public static String getApkNameByDownloadUrl(String downloadUrl) {
         if (TextUtils.isEmpty(downloadUrl)) {
-            return "temp.apk";
+            return "temp_" + System.currentTimeMillis() + ".apk";
         } else {
             String appName = downloadUrl.substring(downloadUrl.lastIndexOf("/") + 1);
             if (!appName.endsWith(".apk")) {
-                appName = "temp.apk";
+                appName = "temp_" + System.currentTimeMillis() + ".apk";
             }
             return appName;
         }
@@ -385,6 +363,30 @@ public final class UpdateUtils {
             cachePath = context.getCacheDir().getPath();
         }
         return cachePath + File.separator + uniqueName;
+    }
+
+    /**
+     * @return 版本更新的默认缓存路径
+     */
+    public static File getDefaultDiskCacheDir() {
+        return FileUtils.getFileByPath(getDefaultDiskCacheDirPath());
+    }
+
+    /**
+     * ApkCacheDir是否是私有目录
+     *
+     * @param updateEntity 版本更新信息实体
+     * @return
+     */
+    public static boolean isPrivateApkCacheDir(@NonNull UpdateEntity updateEntity) {
+        return FileUtils.isPrivatePath(XUpdate.getContext(), updateEntity.getApkCacheDir());
+    }
+
+    /**
+     * @return 版本更新的默认缓存路径
+     */
+    public static String getDefaultDiskCacheDirPath() {
+        return UpdateUtils.getDiskCacheDir(XUpdate.getContext(), KEY_XUPDATE);
     }
 
     private static boolean isSDCardEnable() {
@@ -421,8 +423,9 @@ public final class UpdateUtils {
         ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         String packageName = context.getPackageName();
         List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
-        if (appProcesses == null)
+        if (appProcesses == null) {
             return false;
+        }
         for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
             if (appProcess.processName.equals(packageName) && appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
                 return true;
@@ -431,4 +434,37 @@ public final class UpdateUtils {
         return false;
     }
 
+    /**
+     * 是否是主线程
+     *
+     * @return 是否是主线程
+     */
+    public static boolean isMainThread() {
+        return Looper.getMainLooper() == Looper.myLooper();
+    }
+
+    /**
+     * 页面跳转
+     *
+     * @param intent 跳转意图
+     */
+    public static boolean startActivity(final Intent intent) {
+        if (intent == null) {
+            UpdateLog.e("[startActivity failed]: intent == null");
+            return false;
+        }
+        if (XUpdate.getContext().getPackageManager().resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                XUpdate.getContext().startActivity(intent);
+                return true;
+            } catch (ActivityNotFoundException e) {
+                e.printStackTrace();
+                UpdateLog.e(e);
+            }
+        } else {
+            UpdateLog.e("[resolveActivity failed]: " + (intent.getComponent() != null ? intent.getComponent().getClassName() : intent.getAction()) + " do not register in manifest");
+        }
+        return false;
+    }
 }

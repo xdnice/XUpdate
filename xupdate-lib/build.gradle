@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+//apply plugin: 'img-optimizer'
 
 android {
     compileSdkVersion build_versions.target_sdk
@@ -12,6 +13,7 @@ android {
     }
 
     lintOptions {
+        checkReleaseBuilds false
         abortOnError false
     }
 
@@ -19,8 +21,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    compileOnly deps.support.app_compat
-    compileOnly deps.gson
+    compileOnly deps.androidx.appcompat
 }
 
 apply from: "../JitPackUpload.gradle"

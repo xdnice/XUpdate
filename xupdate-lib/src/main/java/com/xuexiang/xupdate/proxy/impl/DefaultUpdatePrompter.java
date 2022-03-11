@@ -16,14 +16,20 @@
 
 package com.xuexiang.xupdate.proxy.impl;
 
-import android.support.annotation.NonNull;
-import android.support.v4.app.FragmentManager;
+import android.app.Activity;
+import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.FragmentActivity;
 
 import com.xuexiang.xupdate.entity.PromptEntity;
 import com.xuexiang.xupdate.entity.UpdateEntity;
+import com.xuexiang.xupdate.logs.UpdateLog;
+import com.xuexiang.xupdate.proxy.IPrompterProxy;
 import com.xuexiang.xupdate.proxy.IUpdatePrompter;
 import com.xuexiang.xupdate.proxy.IUpdateProxy;
 import com.xuexiang.xupdate.widget.UpdateDialog;
+import com.xuexiang.xupdate.widget.UpdateDialogActivity;
 import com.xuexiang.xupdate.widget.UpdateDialogFragment;
 
 /**
@@ -34,23 +40,6 @@ import com.xuexiang.xupdate.widget.UpdateDialogFragment;
  */
 public class DefaultUpdatePrompter implements IUpdatePrompter {
 
-    private FragmentManager mFragmentManager;
-
-    /**
-     * 使用默认Dialog
-     */
-    public DefaultUpdatePrompter() {
-    }
-
-    /**
-     * 使用FragmentDialog
-     *
-     * @param manager
-     */
-    public DefaultUpdatePrompter(@NonNull FragmentManager manager) {
-        mFragmentManager = manager;
-    }
-
     /**
      * 显示版本更新提示
      *
@@ -60,12 +49,43 @@ public class DefaultUpdatePrompter implements IUpdatePrompter {
      */
     @Override
     public void showPrompt(@NonNull UpdateEntity updateEntity, @NonNull IUpdateProxy updateProxy, @NonNull PromptEntity promptEntity) {
-        if (mFragmentManager != null) {
-            UpdateDialogFragment.newInstance(updateEntity, updateProxy, promptEntity)
-                    .show(mFragmentManager);
+        Context context = updateProxy.getContext();
+        if (context == null) {
+            UpdateLog.e("showPrompt failed, context is null!");
+            return;
+        }
+        beforeShowPrompt(updateEntity, promptEntity);
+        UpdateLog.d("[DefaultUpdatePrompter] showPrompt, " + promptEntity);
+        if (context instanceof FragmentActivity) {
+            UpdateDialogFragment.show(((FragmentActivity) context).getSupportFragmentManager(), updateEntity, getPrompterProxy(updateProxy), promptEntity);
+        } else if (context instanceof Activity) {
+            UpdateDialog.newInstance(context, updateEntity, getPrompterProxy(updateProxy), promptEntity).show();
         } else {
-            UpdateDialog.newInstance(updateEntity, updateProxy, promptEntity)
-                    .show();
+            UpdateDialogActivity.show(context, updateEntity, getPrompterProxy(updateProxy), promptEntity);
         }
     }
+
+    /**
+     * 显示版本更新提示之前的处理【可自定义属于自己的显示逻辑】
+     *
+     * @param updateEntity 更新信息
+     * @param promptEntity 提示界面参数
+     */
+    protected void beforeShowPrompt(@NonNull UpdateEntity updateEntity, @NonNull PromptEntity promptEntity) {
+        // 如果是强制更新的话，默认设置是否忽略下载异常为true，保证即使是下载异常也不退出提示。
+        if (updateEntity.isForce()) {
+            promptEntity.setIgnoreDownloadError(true);
+        }
+    }
+
+    /**
+     * 构建版本更新提示器代理【可自定义属于自己的业务逻辑】
+     *
+     * @param updateProxy 版本更新代理
+     * @return 版本更新提示器代理
+     */
+    protected IPrompterProxy getPrompterProxy(@NonNull IUpdateProxy updateProxy) {
+        return new DefaultPrompterProxyImpl(updateProxy);
+    }
+
 }

@@ -13,29 +13,26 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical">
-
+    android:layout_height="match_parent">
 
     <LinearLayout
-        android:id="@+id/ll_top"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:orientation="vertical">
 
-        <android.support.v7.widget.AppCompatImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_top"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:scaleType="fitXY"
-            app:srcCompat="@drawable/xupdate_bg_app_top" />
+            tools:srcCompat="@drawable/xupdate_bg_app_top" />
 
-        <android.support.v4.widget.NestedScrollView
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:overScrollMode="never"
@@ -47,14 +44,14 @@
                 android:layout_weight="1"
                 android:background="@drawable/xupdate_bg_app_info"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="@dimen/xupdate_content_padding">
 
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="@android:color/black"
-                    android:textSize="15sp"
+                    android:textColor="@color/xupdate_title_text_color"
+                    android:textSize="@dimen/xupdate_title_text_size"
                     tools:text="是否升级到4.1.1版本？" />
 
                 <LinearLayout
@@ -62,17 +59,18 @@
                     android:layout_height="0dp"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="10dp">
+                    android:paddingTop="@dimen/xupdate_common_padding"
+                    android:paddingBottom="@dimen/xupdate_common_padding">
 
                     <TextView
                         android:id="@+id/tv_update_info"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:lineSpacingExtra="5dp"
-                        android:textColor="#666"
-                        android:textSize="14sp"
+                        android:lineSpacingExtra="@dimen/xupdate_content_line_spacing_extra_size"
+                        android:textColor="@color/xupdate_content_text_color"
+                        android:textSize="@dimen/xupdate_content_text_size"
                         tools:text="1、xxxxxxxx\n2、ooooooooo" />
+
                 </LinearLayout>
 
                 <Button
@@ -80,27 +78,27 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:minHeight="40dp"
+                    android:minHeight="@dimen/xupdate_button_min_height"
                     android:text="@string/xupdate_lab_update"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp" />
+                    android:textColor="@color/xupdate_button_text_color"
+                    android:textSize="@dimen/xupdate_button_text_size" />
 
                 <TextView
                     android:id="@+id/tv_ignore"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:minHeight="40dp"
+                    android:minHeight="@dimen/xupdate_button_min_height"
                     android:text="@string/xupdate_lab_ignore"
-                    android:textColor="#666"
-                    android:textSize="15sp"
+                    android:textColor="@color/xupdate_content_text_color"
+                    android:textSize="@dimen/xupdate_button_text_size"
                     android:visibility="gone" />
 
                 <com.xuexiang.xupdate.widget.NumberProgressBar
                     android:id="@+id/npb_progress"
                     style="@style/XUpdate_ProgressBar_Red"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="10dp"
+                    android:paddingTop="@dimen/xupdate_common_padding"
+                    android:paddingBottom="@dimen/xupdate_common_padding"
                     android:visibility="gone" />
 
                 <Button
@@ -108,14 +106,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:minHeight="35dp"
+                    android:minHeight="@dimen/xupdate_button_min_height_mini"
                     android:text="@string/xupdate_lab_background_update"
-                    android:textColor="@android:color/white"
-                    android:textSize="13sp"
+                    android:textColor="@color/xupdate_button_text_color"
+                    android:textSize="@dimen/xupdate_button_text_size_mini"
                     android:visibility="gone" />
 
             </LinearLayout>
-        </android.support.v4.widget.NestedScrollView>
+        </androidx.core.widget.NestedScrollView>
 
 
         <LinearLayout
@@ -127,16 +125,14 @@
             android:orientation="vertical">
 
             <View
-                android:id="@+id/line"
-                android:layout_width="1dp"
-                android:layout_height="50dp"
-                android:background="#D8D8D8"
-                android:visibility="visible" />
+                android:layout_width="@dimen/xupdate_close_line_width"
+                android:layout_height="@dimen/xupdate_close_line_height"
+                android:background="@color/xupdate_close_line_color" />
 
-            <android.support.v7.widget.AppCompatImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_close"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="@dimen/xupdate_close_icon_size"
+                android:layout_height="@dimen/xupdate_close_icon_size"
                 android:layout_marginTop="-2dp"
                 app:srcCompat="@drawable/xupdate_icon_app_close" />
 
@@ -144,4 +140,4 @@
     </LinearLayout>
 
 
-</LinearLayout>
+</FrameLayout>

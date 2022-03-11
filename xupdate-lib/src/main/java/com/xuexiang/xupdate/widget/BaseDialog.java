@@ -16,19 +16,19 @@
 
 package com.xuexiang.xupdate.widget;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.IdRes;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatDialog;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
+
+import androidx.annotation.IdRes;
+import androidx.core.content.ContextCompat;
 
 import com.xuexiang.xupdate.R;
+import com.xuexiang.xupdate.utils.DialogUtils;
 
 /**
  * 基类Dialog
@@ -37,8 +37,14 @@ import com.xuexiang.xupdate.R;
  * @author xuexiang
  * @since 2018/7/24 上午9:34
  */
-public abstract class BaseDialog extends AppCompatDialog {
+public abstract class BaseDialog extends Dialog {
+
     private View mContentView;
+
+    /**
+     * 是否同步系统控制器显示状态，默认false【状态栏、三键导航栏等】
+     */
+    private boolean mIsSyncSystemUiVisibility;
 
     public BaseDialog(Context context, int layoutId) {
         this(context, R.style.XUpdate_Dialog, layoutId);
@@ -95,8 +101,8 @@ public abstract class BaseDialog extends AppCompatDialog {
     /**
      * 设置弹窗的宽和高
      *
-     * @param width
-     * @param height
+     * @param width  宽
+     * @param height 高
      */
     protected BaseDialog setDialogSize(int width, int height) {
         // 获取对话框当前的参数值
@@ -118,49 +124,62 @@ public abstract class BaseDialog extends AppCompatDialog {
         return ContextCompat.getDrawable(getContext(), resId);
     }
 
+    /**
+     * 设置是否同步系统控制器显示状态
+     *
+     * @param isSyncSystemUiVisibility 是否同步系统控制器显示状态
+     * @return this
+     */
+    public BaseDialog setIsSyncSystemUiVisibility(boolean isSyncSystemUiVisibility) {
+        mIsSyncSystemUiVisibility = isSyncSystemUiVisibility;
+        return this;
+    }
+
+    /**
+     * 显示加载
+     */
+    @Override
+    public void show() {
+        showIfSync(mIsSyncSystemUiVisibility);
+    }
+
+    /**
+     * 显示弹窗，是否同步系统控制器显示状态
+     *
+     * @param isSyncSystemUiVisibility 是否同步系统控制器显示状态
+     */
+    public void showIfSync(boolean isSyncSystemUiVisibility) {
+        if (isSyncSystemUiVisibility) {
+            boolean isHandled = DialogUtils.showWindow(DialogUtils.findActivity(getContext()), getWindow(), new DialogUtils.IWindowShower() {
+                @Override
+                public void show(Window window) {
+                    performShow();
+                }
+            });
+            if (!isHandled) {
+                performShow();
+            }
+        } else {
+            performShow();
+        }
+    }
+
+    /**
+     * 真正执行显示的方法
+     */
+    protected void performShow() {
+        super.show();
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         if (ev.getAction() == MotionEvent.ACTION_DOWN) {
-            View v = getCurrentFocus();
-            if (isShouldHideKeyboard(v, ev)) {
-                hideSoftInput(v);
+            if (DialogUtils.isShouldHideInput(getWindow(), ev)) {
+                DialogUtils.hideSoftInput(getCurrentFocus());
             }
         }
         return super.onTouchEvent(ev);
     }
 
-    /**
-     * 根据 EditText 所在坐标和用户点击的坐标相对比，来判断是否隐藏键盘
-     *
-     * @param v
-     * @param event
-     * @return
-     */
-    private static boolean isShouldHideKeyboard(View v, MotionEvent event) {
-        if (v != null && (v instanceof EditText)) {
-            int[] l = {0, 0};
-            v.getLocationInWindow(l);
-            int left = l[0],
-                    top = l[1],
-                    bottom = top + v.getHeight(),
-                    right = left + v.getWidth();
-            return !(event.getX() > left && event.getX() < right
-                    && event.getY() > top && event.getY() < bottom);
-        }
-        return false;
-    }
 
-    /**
-     * 动态隐藏软键盘
-     *
-     * @param view 视图
-     */
-    private static void hideSoftInput(final View view) {
-        InputMethodManager imm =
-                (InputMethodManager) view.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm == null) {
-            return;
-        }
-        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-    }
 }

@@ -18,7 +18,9 @@ package com.xuexiang.xupdate.entity;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
+
+import androidx.annotation.NonNull;
+
 import android.text.TextUtils;
 
 import com.xuexiang.xupdate.proxy.IUpdateHttpService;
@@ -121,7 +123,8 @@ public class UpdateEntity implements Parcelable {
 
     public UpdateEntity setForce(boolean force) {
         if (force) {
-            mIsIgnorable = false; //强制更新，不可以忽略
+            //强制更新，不可以忽略
+            mIsIgnorable = false;
         }
         mIsForce = force;
         return this;
@@ -133,7 +136,8 @@ public class UpdateEntity implements Parcelable {
 
     public UpdateEntity setIsIgnorable(boolean isIgnorable) {
         if (isIgnorable) {
-            mIsForce = false;  //可忽略的，不能是强制更新
+            //可忽略的，不能是强制更新
+            mIsForce = false;
         }
         mIsIgnorable = isIgnorable;
         return this;
@@ -175,12 +179,27 @@ public class UpdateEntity implements Parcelable {
      *
      * @param isAutoMode
      */
-    public void setIsAutoMode(boolean isAutoMode) {
+    public UpdateEntity setIsAutoMode(boolean isAutoMode) {
         if (isAutoMode) {
-            mIsSilent = true;  //自动下载
-            mIsAutoInstall = true; //自动安装
-            mDownloadEntity.setShowNotification(true); //自动模式下，默认下载进度条在通知栏显示
+            //自动下载
+            mIsSilent = true;
+            //自动安装
+            mIsAutoInstall = true;
+            //自动模式下，默认下载进度条在通知栏显示
+            mDownloadEntity.setShowNotification(true);
         }
+        return this;
+    }
+
+    /**
+     * 设置是否显示下载通知
+     *
+     * @param showNotification 是否显示下载通知
+     * @return
+     */
+    public UpdateEntity setShowNotification(boolean showNotification) {
+        mDownloadEntity.setShowNotification(showNotification);
+        return this;
     }
 
     public int getVersionCode() {
@@ -252,6 +271,7 @@ public class UpdateEntity implements Parcelable {
     }
 
     //======内部变量，请勿设置=====//
+
     private IUpdateHttpService mIUpdateHttpService;
 
     public UpdateEntity setIUpdateHttpService(IUpdateHttpService updateHttpService) {

@@ -21,10 +21,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.support.annotation.ColorInt;
-import android.support.annotation.DrawableRes;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
+import android.graphics.drawable.Drawable;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.Window;
@@ -34,12 +31,16 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+
 import com.xuexiang.xupdate.R;
 import com.xuexiang.xupdate._XUpdate;
 import com.xuexiang.xupdate.entity.PromptEntity;
 import com.xuexiang.xupdate.entity.UpdateEntity;
-import com.xuexiang.xupdate.proxy.IUpdateProxy;
-import com.xuexiang.xupdate.service.OnFileDownloadListener;
+import com.xuexiang.xupdate.proxy.IPrompterProxy;
 import com.xuexiang.xupdate.utils.ColorUtils;
 import com.xuexiang.xupdate.utils.DrawableUtils;
 import com.xuexiang.xupdate.utils.UpdateUtils;
@@ -54,7 +55,7 @@ import static com.xuexiang.xupdate.widget.UpdateDialogFragment.REQUEST_CODE_REQU
  * @author xuexiang
  * @since 2018/7/24 上午9:29
  */
-public class UpdateDialog extends BaseDialog implements View.OnClickListener {
+public class UpdateDialog extends BaseDialog implements View.OnClickListener, IDownloadEventHandler {
 
     //======顶部========//
     /**
@@ -101,7 +102,7 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
     /**
      * 更新代理
      */
-    private IUpdateProxy mIUpdateProxy;
+    private IPrompterProxy mPrompterProxy;
     /**
      * 提示器参数信息
      */
@@ -110,22 +111,22 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
     /**
      * 获取更新提示
      *
-     * @param updateEntity 更新信息
-     * @param updateProxy  更新代理
-     * @param promptEntity 提示器参数信息
-     * @return
+     * @param updateEntity  更新信息
+     * @param prompterProxy 更新代理
+     * @param promptEntity  提示器参数信息
+     * @return 更新提示
      */
-    public static UpdateDialog newInstance(@NonNull UpdateEntity updateEntity, @NonNull IUpdateProxy updateProxy, PromptEntity promptEntity) {
-        UpdateDialog dialog = new UpdateDialog(updateProxy.getContext());
-        dialog.setIUpdateProxy(updateProxy)
+    public static UpdateDialog newInstance(@NonNull Context context, @NonNull UpdateEntity updateEntity, @NonNull IPrompterProxy prompterProxy, PromptEntity promptEntity) {
+        UpdateDialog dialog = new UpdateDialog(context);
+        dialog.setIPrompterProxy(prompterProxy)
                 .setUpdateEntity(updateEntity)
                 .setPromptEntity(promptEntity);
-        dialog.initTheme(promptEntity.getThemeColor(), promptEntity.getTopResId(), promptEntity.getWidthRatio(), promptEntity.getHeightRatio());
+        dialog.initTheme(promptEntity.getThemeColor(), promptEntity.getTopResId(), promptEntity.getButtonTextColor(), promptEntity.getWidthRatio(), promptEntity.getHeightRatio());
         return dialog;
     }
 
     private UpdateDialog(Context context) {
-        super(context, R.layout.xupdate_dialog_app);
+        super(context, R.layout.xupdate_dialog_update);
     }
 
     public UpdateDialog setPromptEntity(PromptEntity promptEntity) {
@@ -135,24 +136,24 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
 
     @Override
     protected void initViews() {
-        //顶部图片
+        // 顶部图片
         mIvTop = findViewById(R.id.iv_top);
-        //标题
+        // 标题
         mTvTitle = findViewById(R.id.tv_title);
-        //提示内容
+        // 提示内容
         mTvUpdateInfo = findViewById(R.id.tv_update_info);
-        //更新按钮
+        // 更新按钮
         mBtnUpdate = findViewById(R.id.btn_update);
-        //后台更新按钮
+        // 后台更新按钮
         mBtnBackgroundUpdate = findViewById(R.id.btn_background_update);
-        //忽略
+        // 忽略
         mTvIgnore = findViewById(R.id.tv_ignore);
-        //进度条
+        // 进度条
         mNumberProgressBar = findViewById(R.id.npb_progress);
 
-        //关闭按钮+线 的整个布局
+        // 关闭按钮+线 的整个布局
         mLlClose = findViewById(R.id.ll_close);
-        //关闭按钮
+        // 关闭按钮
         mIvClose = findViewById(R.id.iv_close);
     }
 
@@ -165,22 +166,34 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
 
         setCancelable(false);
         setCanceledOnTouchOutside(false);
+        setIsSyncSystemUiVisibility(true);
     }
 
     //====================生命周期============================//
 
+    private String getUrl() {
+        return mPrompterProxy != null ? mPrompterProxy.getUrl() : "";
+    }
+
     @Override
     public void show() {
-        _XUpdate.setIsShowUpdatePrompter(true);
+        _XUpdate.setIsPrompterShow(getUrl(), true);
         super.show();
     }
 
     @Override
     public void dismiss() {
-        _XUpdate.setIsShowUpdatePrompter(false);
+        _XUpdate.setIsPrompterShow(getUrl(), false);
+        clearIPrompterProxy();
         super.dismiss();
     }
 
+    private void clearIPrompterProxy() {
+        if (mPrompterProxy != null) {
+            mPrompterProxy.recycle();
+            mPrompterProxy = null;
+        }
+    }
     //====================UI构建============================//
 
     public UpdateDialog setUpdateEntity(UpdateEntity updateEntity) {
@@ -192,78 +205,87 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
     /**
      * 初始化更新信息
      *
-     * @param updateEntity
+     * @param updateEntity 版本更新信息
      */
     private void initUpdateInfo(UpdateEntity updateEntity) {
-        //弹出对话框
+        // 弹出对话框
         final String newVersion = updateEntity.getVersionName();
         String updateInfo = UpdateUtils.getDisplayUpdateInfo(getContext(), updateEntity);
-        //更新内容
+        // 更新内容
         mTvUpdateInfo.setText(updateInfo);
         mTvTitle.setText(String.format(getString(R.string.xupdate_lab_ready_update), newVersion));
 
-        //如果文件已下载，直接显示安装
-        if (UpdateUtils.isApkDownloaded(mUpdateEntity)) {
-            showInstallButton(UpdateUtils.getApkFileByUpdateEntity(mUpdateEntity));
-        }
+        // 刷新升级按钮显示
+        refreshUpdateButton();
 
-        //强制更新,不显示关闭按钮
+        // 强制更新,不显示关闭按钮
         if (updateEntity.isForce()) {
             mLlClose.setVisibility(View.GONE);
-        } else {
-            //不是强制更新时，才生效
-            if (updateEntity.isIgnorable()) {
-                mTvIgnore.setVisibility(View.VISIBLE);
-            }
         }
     }
 
     /**
      * 初始化主题色
      */
-    private void initTheme(@ColorInt int themeColor, @DrawableRes int topResId, float widthRatio, float heightRatio) {
+    private void initTheme(@ColorInt int themeColor, @DrawableRes int topResId, @ColorInt int buttonTextColor, float widthRatio, float heightRatio) {
         if (themeColor == -1) {
             themeColor = ColorUtils.getColor(getContext(), R.color.xupdate_default_theme_color);
         }
         if (topResId == -1) {
             topResId = R.drawable.xupdate_bg_app_top;
         }
-        setDialogTheme(themeColor, topResId, widthRatio, heightRatio);
+        if (buttonTextColor == 0) {
+            buttonTextColor = ColorUtils.isColorDark(themeColor) ? Color.WHITE : Color.BLACK;
+        }
+        setDialogTheme(themeColor, topResId, buttonTextColor, widthRatio, heightRatio);
     }
 
     /**
-     * 设置
+     * 设置⏏弹窗主题
      *
-     * @param themeColor    主色
-     * @param topResId 图片
+     * @param themeColor      主色
+     * @param topResId        图片
+     * @param buttonTextColor 按钮文字颜色
+     * @param widthRatio      宽和屏幕的比例
+     * @param heightRatio     高和屏幕的比例
      */
-    private void setDialogTheme(int themeColor, int topResId, float widthRatio, float heightRatio) {
-        mIvTop.setImageResource(topResId);
-        mBtnUpdate.setBackgroundDrawable(DrawableUtils.getDrawable(UpdateUtils.dip2px(4, getContext()), themeColor));
-        mBtnBackgroundUpdate.setBackgroundDrawable(DrawableUtils.getDrawable(UpdateUtils.dip2px(4, getContext()), themeColor));
+    private void setDialogTheme(int themeColor, int topResId, int buttonTextColor, float widthRatio, float heightRatio) {
+        Drawable topDrawable = _XUpdate.getTopDrawable(mPromptEntity.getTopDrawableTag());
+        if (topDrawable != null) {
+            mIvTop.setImageDrawable(topDrawable);
+        } else {
+            mIvTop.setImageResource(topResId);
+        }
+        DrawableUtils.setBackgroundCompat(mBtnUpdate, DrawableUtils.getDrawable(UpdateUtils.dip2px(4, getContext()), themeColor));
+        DrawableUtils.setBackgroundCompat(mBtnBackgroundUpdate, DrawableUtils.getDrawable(UpdateUtils.dip2px(4, getContext()), themeColor));
         mNumberProgressBar.setProgressTextColor(themeColor);
         mNumberProgressBar.setReachedBarColor(themeColor);
-        //随背景颜色变化
-        mBtnUpdate.setTextColor(ColorUtils.isColorDark(themeColor) ? Color.WHITE : Color.BLACK);
+        mBtnUpdate.setTextColor(buttonTextColor);
+        mBtnBackgroundUpdate.setTextColor(buttonTextColor);
 
+        initWindow(widthRatio, heightRatio);
+    }
+
+    private void initWindow(float widthRatio, float heightRatio) {
         Window window = getWindow();
-        if (window != null) {
-            WindowManager.LayoutParams lp = window.getAttributes();
-            DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
-            if (widthRatio > 0 && widthRatio < 1) {
-                lp.width = (int) (displayMetrics.widthPixels * widthRatio);
-            }
-            if (heightRatio > 0 && heightRatio < 1) {
-                lp.height = (int) (displayMetrics.heightPixels * heightRatio);
-            }
-            window.setAttributes(lp);
+        if (window == null) {
+            return;
         }
+        WindowManager.LayoutParams lp = window.getAttributes();
+        DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
+        if (widthRatio > 0 && widthRatio < 1) {
+            lp.width = (int) (displayMetrics.widthPixels * widthRatio);
+        }
+        if (heightRatio > 0 && heightRatio < 1) {
+            lp.height = (int) (displayMetrics.heightPixels * heightRatio);
+        }
+        window.setAttributes(lp);
     }
 
     //====================更新功能============================//
 
-    public UpdateDialog setIUpdateProxy(IUpdateProxy updateProxy) {
-        mIUpdateProxy = updateProxy;
+    private UpdateDialog setIPrompterProxy(IPrompterProxy prompterProxy) {
+        mPrompterProxy = prompterProxy;
         return this;
     }
 
@@ -274,18 +296,18 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
         if (i == R.id.btn_update) {
             //权限判断是否有访问外部存储空间权限
             int flag = ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            if (flag != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions((Activity) mIUpdateProxy.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_REQUEST_PERMISSIONS);
+            if (!UpdateUtils.isPrivateApkCacheDir(mUpdateEntity) && flag != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions((Activity) getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_REQUEST_PERMISSIONS);
             } else {
                 installApp();
             }
         } else if (i == R.id.btn_background_update) {
             //点击后台更新按钮
-            mIUpdateProxy.backgroundDownload();
+            mPrompterProxy.backgroundDownload();
             dismiss();
         } else if (i == R.id.iv_close) {
             //点击关闭按钮
-            mIUpdateProxy.cancelDownload();
+            mPrompterProxy.cancelDownload();
             dismiss();
         } else if (i == R.id.tv_ignore) {
             //点击忽略按钮
@@ -302,11 +324,11 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
             if (!mUpdateEntity.isForce()) {
                 dismiss();
             } else {
-                showInstallButton(UpdateUtils.getApkFileByUpdateEntity(mUpdateEntity));
+                showInstallButton();
             }
         } else {
-            if (mIUpdateProxy != null) {
-                mIUpdateProxy.startDownload(mUpdateEntity, mOnFileDownloadListener);
+            if (mPrompterProxy != null) {
+                mPrompterProxy.startDownload(mUpdateEntity, new WeakFileDownloadListener(this));
             }
             //忽略版本在点击更新按钮后隐藏
             if (mUpdateEntity.isIgnorable()) {
@@ -315,85 +337,108 @@ public class UpdateDialog extends BaseDialog implements View.OnClickListener {
         }
     }
 
-    /**
-     * 文件下载监听
-     */
-    private OnFileDownloadListener mOnFileDownloadListener = new OnFileDownloadListener() {
-        @Override
-        public void onStart() {
-            if (isShowing()) {
-                mNumberProgressBar.setVisibility(View.VISIBLE);
-                mBtnUpdate.setVisibility(View.GONE);
-                if (mPromptEntity.isSupportBackgroundUpdate()) {
-                    mBtnBackgroundUpdate.setVisibility(View.VISIBLE);
-                } else {
-                    mBtnBackgroundUpdate.setVisibility(View.GONE);
-                }
-            }
+    @Override
+    public void handleStart() {
+        if (isShowing()) {
+            doStart();
         }
+    }
 
-        @Override
-        public void onProgress(float progress, long total) {
-            if (isShowing()) {
-                mNumberProgressBar.setProgress(Math.round(progress * 100));
-                mNumberProgressBar.setMax(100);
-            }
+    private void doStart() {
+        mNumberProgressBar.setVisibility(View.VISIBLE);
+        mNumberProgressBar.setProgress(0);
+        mBtnUpdate.setVisibility(View.GONE);
+        if (mPromptEntity.isSupportBackgroundUpdate()) {
+            mBtnBackgroundUpdate.setVisibility(View.VISIBLE);
+        } else {
+            mBtnBackgroundUpdate.setVisibility(View.GONE);
         }
+    }
 
-        @Override
-        public boolean onCompleted(File file) {
-            if (isShowing()) {
-                mBtnBackgroundUpdate.setVisibility(View.GONE);
-                if (mUpdateEntity.isForce()) {
-                    showInstallButton(file);
-                } else {
-                    dismiss();
-                }
+    @Override
+    public void handleProgress(float progress) {
+        if (isShowing()) {
+            if (mNumberProgressBar.getVisibility() == View.GONE) {
+                doStart();
             }
-            //返回true，自动进行apk安装
-            return true;
+            mNumberProgressBar.setProgress(Math.round(progress * 100));
+            mNumberProgressBar.setMax(100);
         }
+    }
 
-        @Override
-        public void onError(Throwable throwable) {
-            if (isShowing()) {
+    @Override
+    public boolean handleCompleted(File file) {
+        if (isShowing()) {
+            mBtnBackgroundUpdate.setVisibility(View.GONE);
+            if (mUpdateEntity.isForce()) {
+                showInstallButton();
+            } else {
                 dismiss();
             }
         }
-    };
+        // 返回true，自动进行apk安装
+        return true;
+    }
+
+    @Override
+    public void handleError(Throwable throwable) {
+        if (isShowing()) {
+            if (mPromptEntity.isIgnoreDownloadError()) {
+                refreshUpdateButton();
+            } else {
+                dismiss();
+            }
+        }
+    }
+
+    /**
+     * 刷新升级按钮显示
+     */
+    private void refreshUpdateButton() {
+        if (UpdateUtils.isApkDownloaded(mUpdateEntity)) {
+            showInstallButton();
+        } else {
+            showUpdateButton();
+        }
+        mTvIgnore.setVisibility(mUpdateEntity.isIgnorable() ? View.VISIBLE : View.GONE);
+    }
 
     /**
      * 显示安装的按钮
      */
-    private void showInstallButton(final File apkFile) {
+    private void showInstallButton() {
         mNumberProgressBar.setVisibility(View.GONE);
+        mBtnBackgroundUpdate.setVisibility(View.GONE);
         mBtnUpdate.setText(R.string.xupdate_lab_install);
         mBtnUpdate.setVisibility(View.VISIBLE);
-        mBtnUpdate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onInstallApk(apkFile);
-            }
-        });
+        mBtnUpdate.setOnClickListener(this);
+    }
+
+    /**
+     * 显示升级的按钮
+     */
+    private void showUpdateButton() {
+        mNumberProgressBar.setVisibility(View.GONE);
+        mBtnBackgroundUpdate.setVisibility(View.GONE);
+        mBtnUpdate.setText(R.string.xupdate_lab_update);
+        mBtnUpdate.setVisibility(View.VISIBLE);
+        mBtnUpdate.setOnClickListener(this);
     }
 
     private void onInstallApk() {
         _XUpdate.startInstallApk(getContext(), UpdateUtils.getApkFileByUpdateEntity(mUpdateEntity), mUpdateEntity.getDownLoadEntity());
     }
 
-    private void onInstallApk(File apkFile) {
-        _XUpdate.startInstallApk(getContext(), apkFile, mUpdateEntity.getDownLoadEntity());
-    }
-
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-        _XUpdate.setIsShowUpdatePrompter(true);
+        _XUpdate.setIsPrompterShow(getUrl(), true);
     }
 
     @Override
     public void onDetachedFromWindow() {
-        _XUpdate.setIsShowUpdatePrompter(false);
+        _XUpdate.setIsPrompterShow(getUrl(), false);
+        clearIPrompterProxy();
         super.onDetachedFromWindow();
     }
 

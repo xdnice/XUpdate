@@ -26,6 +26,7 @@ import com.xuexiang.xupdate.XUpdate;
 import com.xuexiang.xupdatedemo.R;
 import com.xuexiang.xupdatedemo.custom.XUpdateServiceParser;
 import com.xuexiang.xupdatedemo.utils.SettingSPUtils;
+import com.xuexiang.xutil.app.PathUtils;
 import com.xuexiang.xutil.net.NetworkUtils;
 
 import java.util.List;
@@ -70,6 +71,8 @@ public class XUpdateServiceFragment extends XPageFragment {
                 break;
             case R.id.btn_update:
                 XUpdate.newBuild(getContext())
+                        .apkCacheDir(PathUtils.getExtDownloadsPath())
+                        .updateHttpService(XUpdateServiceParser.getUpdateHttpService())
                         .isGet(false)
                         .updateUrl(XUpdateServiceParser.getVersionCheckUrl())
                         .updateParser(new XUpdateServiceParser())
@@ -80,7 +83,8 @@ public class XUpdateServiceFragment extends XPageFragment {
                         .isGet(false)
                         .updateUrl(XUpdateServiceParser.getVersionCheckUrl())
                         .updateParser(new XUpdateServiceParser())
-                        .isAutoMode(true) //如果需要完全无人干预，自动更新，需要root权限【静默安装需要】
+                        //如果需要完全无人干预，自动更新，需要root权限【静默安装需要】
+                        .isAutoMode(true)
                         .update();
                 break;
             case R.id.btn_force_update:
@@ -90,6 +94,8 @@ public class XUpdateServiceFragment extends XPageFragment {
                         .updateUrl(XUpdateServiceParser.getVersionCheckUrl())
                         .updateParser(new XUpdateServiceParser())
                         .update();
+                break;
+            default:
                 break;
         }
     }

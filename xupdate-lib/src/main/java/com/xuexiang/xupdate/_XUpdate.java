@@ -17,7 +17,13 @@
 package com.xuexiang.xupdate;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
+import android.util.LruCache;
+
+import androidx.annotation.NonNull;
 
 import com.xuexiang.xupdate.entity.DownloadEntity;
 import com.xuexiang.xupdate.entity.UpdateError;
@@ -30,11 +36,14 @@ import com.xuexiang.xupdate.proxy.IUpdateChecker;
 import com.xuexiang.xupdate.proxy.IUpdateDownloader;
 import com.xuexiang.xupdate.proxy.IUpdateHttpService;
 import com.xuexiang.xupdate.proxy.IUpdateParser;
+import com.xuexiang.xupdate.proxy.IUpdatePrompter;
 import com.xuexiang.xupdate.proxy.impl.DefaultFileEncryptor;
 import com.xuexiang.xupdate.utils.ApkInstallUtils;
 
 import java.io.File;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.xuexiang.xupdate.entity.UpdateError.ERROR.INSTALL_FAILED;
 
@@ -47,16 +56,118 @@ import static com.xuexiang.xupdate.entity.UpdateError.ERROR.INSTALL_FAILED;
 public final class _XUpdate {
 
     /**
-     * 标志当前更新提示是否已显示
+     * 存储正在进行检查版本的状态，key为url，value为是否正在检查
      */
-    private static boolean sIsShowUpdatePrompter = false;
+    private static Map<String, Boolean> sCheckMap = new ConcurrentHashMap<>();
+    /**
+     * 存储是否正在显示版本更新，key为url，value为是否正在显示版本更新
+     */
+    private static Map<String, Boolean> sPrompterMap = new ConcurrentHashMap<>();
+    /**
+     * Runnable等待队列
+     */
+    private static Map<String, Runnable> sWaitRunnableMap = new ConcurrentHashMap<>();
 
-    public static void setIsShowUpdatePrompter(boolean isShowUpdatePrompter) {
-        _XUpdate.sIsShowUpdatePrompter = isShowUpdatePrompter;
+    /**
+     * 存储顶部图片资源
+     */
+    private static LruCache<String, Drawable> sTopDrawableCache = new LruCache<>(4);
+
+    private static Handler sMainHandler = new Handler(Looper.getMainLooper());
+
+    /**
+     * 10秒的检查延迟
+     */
+    private static final long CHECK_TIMEOUT = 10 * 1000L;
+
+    /**
+     * 设置版本检查的状态【防止重复检查】
+     *
+     * @param url        请求地址
+     * @param isChecking 是否正在检查
+     */
+    public static void setCheckUrlStatus(final String url, boolean isChecking) {
+        if (TextUtils.isEmpty(url)) {
+            return;
+        }
+        sCheckMap.put(url, isChecking);
+        Runnable waitRunnable = sWaitRunnableMap.get(url);
+        if (waitRunnable != null) {
+            sMainHandler.removeCallbacks(waitRunnable);
+            sWaitRunnableMap.remove(url);
+        }
+        if (isChecking) {
+            Runnable newRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    // 处理超时情况
+                    sWaitRunnableMap.remove(url);
+                    sCheckMap.put(url, false);
+                }
+            };
+            sMainHandler.postDelayed(newRunnable, CHECK_TIMEOUT);
+            sWaitRunnableMap.put(url, newRunnable);
+        }
     }
 
-    public static boolean isShowUpdatePrompter() {
-        return _XUpdate.sIsShowUpdatePrompter;
+    /**
+     * 获取版本检查的状态
+     *
+     * @param url 请求地址
+     * @return 是否正在检查
+     */
+    public static boolean getCheckUrlStatus(String url) {
+        Boolean checkStatus = sCheckMap.get(url);
+        return checkStatus != null && checkStatus;
+    }
+
+    /**
+     * 设置版本更新弹窗是否已经显示
+     *
+     * @param url    请求地址
+     * @param isShow 是否已经显示
+     */
+    public static void setIsPrompterShow(String url, boolean isShow) {
+        if (TextUtils.isEmpty(url)) {
+            return;
+        }
+        sPrompterMap.put(url, isShow);
+    }
+
+    /**
+     * 获取版本更新弹窗是否已经显示
+     *
+     * @param url 请求地址
+     * @return 是否正在显示
+     */
+    public static boolean isPrompterShow(String url) {
+        Boolean isShow = sPrompterMap.get(url);
+        return isShow != null && isShow;
+    }
+
+    /**
+     * 保存顶部背景图片
+     *
+     * @param drawable 图片
+     * @return 图片标识
+     */
+    public static String saveTopDrawable(Drawable drawable) {
+        String tag = UUID.randomUUID().toString();
+        sTopDrawableCache.put(tag, drawable);
+        return tag;
+    }
+
+    /**
+     * 获取顶部背景图片
+     *
+     * @param drawableTag 图片标识
+     * @return 顶部背景图片
+     */
+    public static Drawable getTopDrawable(String drawableTag) {
+        if (TextUtils.isEmpty(drawableTag)) {
+            return null;
+        }
+        return sTopDrawableCache.get(drawableTag);
     }
 
     //===========================属性设置===================================//
@@ -66,19 +177,23 @@ public final class _XUpdate {
     }
 
     public static IUpdateHttpService getIUpdateHttpService() {
-        return XUpdate.get().mIUpdateHttpService;
+        return XUpdate.get().mUpdateHttpService;
     }
 
     public static IUpdateChecker getIUpdateChecker() {
-        return XUpdate.get().mIUpdateChecker;
+        return XUpdate.get().mUpdateChecker;
     }
 
     public static IUpdateParser getIUpdateParser() {
-        return XUpdate.get().mIUpdateParser;
+        return XUpdate.get().mUpdateParser;
+    }
+
+    public static IUpdatePrompter getIUpdatePrompter() {
+        return XUpdate.get().mUpdatePrompter;
     }
 
     public static IUpdateDownloader getIUpdateDownLoader() {
-        return XUpdate.get().mIUpdateDownloader;
+        return XUpdate.get().mUpdateDownloader;
     }
 
     public static boolean isGet() {
@@ -105,10 +220,10 @@ public final class _XUpdate {
      * @param file 需要加密的文件
      */
     public static String encryptFile(File file) {
-        if (XUpdate.get().mIFileEncryptor == null) {
-            XUpdate.get().mIFileEncryptor = new DefaultFileEncryptor();
+        if (XUpdate.get().mFileEncryptor == null) {
+            XUpdate.get().mFileEncryptor = new DefaultFileEncryptor();
         }
-        return XUpdate.get().mIFileEncryptor.encryptFile(file);
+        return XUpdate.get().mFileEncryptor.encryptFile(file);
     }
 
     /**
@@ -119,10 +234,10 @@ public final class _XUpdate {
      * @return 文件是否有效
      */
     public static boolean isFileValid(String encrypt, File file) {
-        if (XUpdate.get().mIFileEncryptor == null) {
-            XUpdate.get().mIFileEncryptor = new DefaultFileEncryptor();
+        if (XUpdate.get().mFileEncryptor == null) {
+            XUpdate.get().mFileEncryptor = new DefaultFileEncryptor();
         }
-        return XUpdate.get().mIFileEncryptor.isFileValid(encrypt, file);
+        return XUpdate.get().mFileEncryptor.isFileValid(encrypt, file);
     }
 
     //===========================apk安装监听===================================//
@@ -199,8 +314,8 @@ public final class _XUpdate {
     /**
      * 更新出现错误
      *
-     * @param errorCode
-     * @param message
+     * @param errorCode 错误码
+     * @param message   错误信息
      */
     public static void onUpdateError(int errorCode, String message) {
         onUpdateError(new UpdateError(errorCode, message));
