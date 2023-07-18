@@ -16,6 +16,11 @@
 
 package com.xuexiang.xupdate;
 
+import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_NO_NETWORK;
+import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_NO_WIFI;
+import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_UPDATING;
+import static com.xuexiang.xupdate.entity.UpdateError.ERROR.PROMPT_ACTIVITY_DESTROY;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -46,10 +51,6 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_NO_NETWORK;
-import static com.xuexiang.xupdate.entity.UpdateError.ERROR.CHECK_NO_WIFI;
-import static com.xuexiang.xupdate.entity.UpdateError.ERROR.PROMPT_ACTIVITY_DESTROY;
-
 /**
  * 版本更新管理者
  *
@@ -69,35 +70,35 @@ public class UpdateManager implements IUpdateProxy {
     /**
      * 上下文
      */
-    private WeakReference<Context> mContext;
+    private final WeakReference<Context> mContext;
     //============请求参数==============//
     /**
      * 版本更新的url地址
      */
-    private String mUpdateUrl;
+    private final String mUpdateUrl;
     /**
      * 请求参数
      */
-    private Map<String, Object> mParams;
+    private final Map<String, Object> mParams;
 
     /**
      * apk缓存的目录
      */
-    private String mApkCacheDir;
+    private final String mApkCacheDir;
 
     //===========更新模式================//
     /**
      * 是否只在wifi下进行版本更新检查
      */
-    private boolean mIsWifiOnly;
+    private final boolean mIsWifiOnly;
     /**
      * 是否是Get请求
      */
-    private boolean mIsGet;
+    private final boolean mIsGet;
     /**
      * 是否是自动版本更新模式【无人干预,自动下载，自动更新】
      */
-    private boolean mIsAutoMode;
+    private final boolean mIsAutoMode;
     //===========更新组件===============//
     /**
      * 版本更新网络请求服务API
@@ -106,11 +107,11 @@ public class UpdateManager implements IUpdateProxy {
     /**
      * 版本更新检查器
      */
-    private IUpdateChecker mIUpdateChecker;
+    private final IUpdateChecker mIUpdateChecker;
     /**
      * 版本更新解析器
      */
-    private IUpdateParser mIUpdateParser;
+    private final IUpdateParser mIUpdateParser;
     /**
      * 版本更新下载器
      */
@@ -122,11 +123,11 @@ public class UpdateManager implements IUpdateProxy {
     /**
      * 版本更新提示器
      */
-    private IUpdatePrompter mIUpdatePrompter;
+    private final IUpdatePrompter mIUpdatePrompter;
     /**
      * 版本更新提示器参数信息
      */
-    private PromptEntity mPromptEntity;
+    private final PromptEntity mPromptEntity;
 
     /**
      * 构造函数
@@ -168,7 +169,7 @@ public class UpdateManager implements IUpdateProxy {
     @Nullable
     @Override
     public Context getContext() {
-        return mContext != null ? mContext.get() : null;
+        return mContext.get();
     }
 
     @Override
@@ -186,7 +187,7 @@ public class UpdateManager implements IUpdateProxy {
      */
     @Override
     public void update() {
-        UpdateLog.d("XUpdate.update()启动:" + toString());
+        UpdateLog.d("XUpdate.update()启动:" + this);
         if (mUpdateProxy != null) {
             mUpdateProxy.update();
         } else {
@@ -200,6 +201,10 @@ public class UpdateManager implements IUpdateProxy {
     private void doUpdate() {
         onBeforeCheck();
 
+        doCheck();
+    }
+
+    private void doCheck() {
         if (mIsWifiOnly) {
             if (UpdateUtils.checkWifi()) {
                 checkVersion();
@@ -266,12 +271,6 @@ public class UpdateManager implements IUpdateProxy {
         }
     }
 
-    /**
-     * 将请求的json结果解析为版本更新信息实体
-     *
-     * @param json
-     * @return
-     */
     @Override
     public UpdateEntity parseJson(@NonNull String json) throws Exception {
         UpdateLog.i("服务端返回的最新版本信息:" + json);
@@ -379,7 +378,9 @@ public class UpdateManager implements IUpdateProxy {
         if (mUpdateProxy != null) {
             mUpdateProxy.startDownload(updateEntity, downloadListener);
         } else {
-            mIUpdateDownloader.startDownload(updateEntity, downloadListener);
+            if (mIUpdateDownloader != null) {
+                mIUpdateDownloader.startDownload(updateEntity, downloadListener);
+            }
         }
     }
 
@@ -392,7 +393,9 @@ public class UpdateManager implements IUpdateProxy {
         if (mUpdateProxy != null) {
             mUpdateProxy.backgroundDownload();
         } else {
-            mIUpdateDownloader.backgroundDownload();
+            if (mIUpdateDownloader != null) {
+                mIUpdateDownloader.backgroundDownload();
+            }
         }
     }
 
@@ -402,7 +405,9 @@ public class UpdateManager implements IUpdateProxy {
         if (mUpdateProxy != null) {
             mUpdateProxy.cancelDownload();
         } else {
-            mIUpdateDownloader.cancelDownload();
+            if (mIUpdateDownloader != null) {
+                mIUpdateDownloader.cancelDownload();
+            }
         }
     }
 
@@ -417,11 +422,8 @@ public class UpdateManager implements IUpdateProxy {
             mParams.clear();
         }
         mIUpdateHttpService = null;
-        mIUpdateChecker = null;
-        mIUpdateParser = null;
         mIUpdateDownloader = null;
         mOnFileDownloadListener = null;
-        mIUpdatePrompter = null;
     }
 
     //============================对外提供的自定义使用api===============================//
@@ -431,23 +433,35 @@ public class UpdateManager implements IUpdateProxy {
      *
      * @param downloadUrl      下载地址
      * @param downloadListener 下载监听
+     * @return 是否执行成功
      */
-    public void download(String downloadUrl, @Nullable OnFileDownloadListener downloadListener) {
+    public boolean download(String downloadUrl, @Nullable OnFileDownloadListener downloadListener) {
+        if (_XUpdate.isAppUpdating("")) {
+            _XUpdate.onUpdateError(CHECK_UPDATING);
+            return false;
+        }
         startDownload(refreshParams(new UpdateEntity().setDownloadUrl(downloadUrl)), downloadListener);
+        return true;
     }
 
     /**
      * 直接更新，不使用版本更新检查器
      *
      * @param updateEntity 版本更新信息
+     * @return 是否执行成功
      */
-    public void update(UpdateEntity updateEntity) {
+    public boolean update(UpdateEntity updateEntity) {
+        if (_XUpdate.isAppUpdating("")) {
+            _XUpdate.onUpdateError(CHECK_UPDATING);
+            return false;
+        }
         mUpdateEntity = refreshParams(updateEntity);
         try {
             UpdateUtils.processUpdateEntity(mUpdateEntity, "这里调用的是直接更新方法，因此没有json!", this);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return true;
     }
 
 
@@ -860,6 +874,7 @@ public class UpdateManager implements IUpdateProxy {
         }
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "XUpdate{" +

@@ -38,6 +38,7 @@ import com.xuexiang.xupdate.proxy.IUpdateHttpService;
 import com.xuexiang.xupdate.proxy.IUpdateParser;
 import com.xuexiang.xupdate.proxy.IUpdatePrompter;
 import com.xuexiang.xupdate.proxy.impl.DefaultFileEncryptor;
+import com.xuexiang.xupdate.service.DownloadService;
 import com.xuexiang.xupdate.utils.ApkInstallUtils;
 
 import java.io.File;
@@ -58,27 +59,36 @@ public final class _XUpdate {
     /**
      * 存储正在进行检查版本的状态，key为url，value为是否正在检查
      */
-    private static Map<String, Boolean> sCheckMap = new ConcurrentHashMap<>();
+    private static final Map<String, Boolean> sCheckMap = new ConcurrentHashMap<>();
     /**
      * 存储是否正在显示版本更新，key为url，value为是否正在显示版本更新
      */
-    private static Map<String, Boolean> sPrompterMap = new ConcurrentHashMap<>();
+    private static final Map<String, Boolean> sPrompterMap = new ConcurrentHashMap<>();
     /**
      * Runnable等待队列
      */
-    private static Map<String, Runnable> sWaitRunnableMap = new ConcurrentHashMap<>();
+    private static final Map<String, Runnable> sWaitRunnableMap = new ConcurrentHashMap<>();
 
     /**
      * 存储顶部图片资源
      */
-    private static LruCache<String, Drawable> sTopDrawableCache = new LruCache<>(4);
+    private static final LruCache<String, Drawable> sTopDrawableCache = new LruCache<>(4);
 
-    private static Handler sMainHandler = new Handler(Looper.getMainLooper());
+    private static final Handler sMainHandler = new Handler(Looper.getMainLooper());
 
     /**
      * 10秒的检查延迟
      */
     private static final long CHECK_TIMEOUT = 10 * 1000L;
+
+    /**
+     * 获取是否正在进行更新
+     *
+     * @param url        请求地址
+     */
+    public static boolean isAppUpdating(String url) {
+        return DownloadService.isRunning() || _XUpdate.getCheckUrlStatus(url) || _XUpdate.isPrompterShow(url);
+    }
 
     /**
      * 设置版本检查的状态【防止重复检查】

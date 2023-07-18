@@ -21,7 +21,7 @@ Please read the [instruction document](https://github.com/xuexiangjys/XUpdate/wi
 
 | WeChat public number   | juejin     |  zhihu    |  CSDN   |   jianshu   |   segmentfault  |   bilibili  |   toutiao
 |---------|---------|--------- |---------|---------|---------|---------|---------|
-| [我的Android开源之旅](https://ss.im5i.com/2021/06/14/6tqAU.png)  |  [Click me](https://juejin.im/user/598feef55188257d592e56ed/posts)    |   [Click me](https://www.zhihu.com/people/xuexiangjys/posts)       |   [Click me](https://xuexiangjys.blog.csdn.net/)  |   [Click me](https://www.jianshu.com/u/6bf605575337)  |   [Click me](https://segmentfault.com/u/xuexiangjys)  |   [Click me](https://space.bilibili.com/483850585)  |   [Click me](https://img.rruu.net/image/5ff34ff7b02dd)
+| [我的Android开源之旅](https://t.1yb.co/Irse)  |  [Click me](https://juejin.im/user/598feef55188257d592e56ed/posts)    |   [Click me](https://www.zhihu.com/people/xuexiangjys/posts)       |   [Click me](https://xuexiangjys.blog.csdn.net/)  |   [Click me](https://www.jianshu.com/u/6bf605575337)  |   [Click me](https://segmentfault.com/u/xuexiangjys)  |   [Click me](https://space.bilibili.com/483850585)  |   [Click me](https://img.rruu.net/image/5ff34ff7b02dd)
 
 ## Simplify use
 
@@ -111,27 +111,27 @@ IUpdateProxy/XUpdate --- (update) ---> IUpdateChecker --->（Request the server 
 
 * Default version update
 
-![xupdate_default.png](https://ss.im5i.com/2021/06/14/6TPSz.png)
+![xupdate_default.png](./img/xupdate_default.png)
 
 * Background update
 
-![xupdate_background.png](https://ss.im5i.com/2021/06/14/6TgXW.png)
+![xupdate_background.png](./img/xupdate_background.png)
 
 * Force version update
 
-![xupdate_force.png](https://ss.im5i.com/2021/06/14/6Tlw8.png)
+![xupdate_force.png](./img/xupdate_force.png)
 
 * Ignored version update
 
-![xupdate_ignore.png](https://ss.im5i.com/2021/06/14/6TVu5.png)
+![xupdate_ignore.png](./img/xupdate_ignore.png)
 
 * Custom pop up theme
 
-![xupdate_custom.png](https://ss.im5i.com/2021/06/14/6TGDG.png)
+![xupdate_custom.png](./img/xupdate_custom.png)
 
 * Use the system pop-up prompt
 
-![xupdate_system.png](https://ss.im5i.com/2021/06/14/6Td86.png)
+![xupdate_system.png](./img/xupdate_system.png)
 
 ### Demo update background service
 
@@ -145,13 +145,13 @@ Because GitHub is slow to visit recently, if you need to experience xupdate bett
 
 [![downloads](https://img.shields.io/badge/downloads-2.1M-blue.svg)](https://www.pgyer.com/xupdate)
 
-[![xupdate_download_pugongying.png](https://ss.im5i.com/2021/06/14/6jaJj.png)](https://www.pgyer.com/xupdate)
+[![xupdate_download_pugongying.png](./img/download_pugongying.png)](https://www.pgyer.com/xupdate)
 
 #### GitHub Download
 
 [![downloads](https://img.shields.io/badge/downloads-2.1M-blue.svg)](https://github.com/xuexiangjys/XUpdate/blob/master/apk/xupdate_demo_1.0.apk?raw=true)
 
-[![xupdate_download.png](https://ss.im5i.com/2021/06/14/6jDhD.png)](https://github.com/xuexiangjys/XUpdate/blob/master/apk/xupdate_demo_1.0.apk?raw=true)
+[![xupdate_download.png](./img/download.png)](https://github.com/xuexiangjys/XUpdate/blob/master/apk/xupdate_demo_1.0.apk?raw=true)
 
 ---
 
@@ -172,7 +172,7 @@ allprojects {
 }
 ```
 
-2.Then, in the dependencies of the project:
+2. Then add in the dependencies of `build.gradle` of the application project (usually app):
 
 The following is the version description. Choose one.
 
@@ -182,7 +182,7 @@ The following is the version description. Choose one.
 dependencies {
   ...
   // androidx project
-  implementation 'com.github.xuexiangjys:XUpdate:2.1.1'
+  implementation 'com.github.xuexiangjys:XUpdate:2.1.4'
 }
 ```
 
@@ -601,7 +601,7 @@ https://github.com/WVector/AppUpdate
 
 > Your support is the driving force of my maintenance. I will list the list of all the reward personnel at the bottom as the voucher. Please leave the notes of the support items before rewarding!
 
-![pay.png](https://ss.im5i.com/2021/06/14/6twG6.png)
+![pay.png](https://raw.githubusercontent.com/xuexiangjys/Resource/master/img/pay/pay.png)
 
 Thank you for your sponsorship：
 
@@ -617,11 +617,9 @@ Joe | 88.88￥ | WeChat
 
 > More information, please scan my personal WeChat Subscription:【我的Android开源之旅】
 
-![](https://ss.im5i.com/2021/06/14/65yoL.jpg)
+![](https://s1.ax1x.com/2022/04/27/LbGMJH.jpg)
 
 ## Contact
 
 [![](https://img.shields.io/badge/QQGroup-720212425-blue.svg)](http://shang.qq.com/wpa/qunwpa?idkey=37ea606864cafa3c8a5d6b07f04fd672936a50fd6e535c13702baf705d57e6e8)
-
-![xupdate_qq.jpg](https://ss.im5i.com/2021/06/14/6TQuQ.jpg)
 
